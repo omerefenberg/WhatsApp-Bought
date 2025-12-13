@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 yarn.lock
 
 # Environment variables
@@ -41,7 +40,6 @@ coverage/
 *.pid
 .cache
 
-package.json
 פתח והדבק:
 json{
   "name": "bought-finance-bot",
