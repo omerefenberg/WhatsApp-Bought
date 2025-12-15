@@ -1,93 +1,93 @@
 # WhatsApp Bought (bot)
 
-לא סתם בוט, מערכת ניהול פיננסי מלאה המורכבת מבוט WhatsApp חכם עם AI ולוח בקרה מתקדם לניתוח נתונים.
+Not just a bot, a complete financial management system consisting of a smart AI-powered WhatsApp bot and an advanced dashboard for data analysis.
 
-## סקירה כללית
+## Overview
 
-**Bought** היא מערכת ניהול פיננסי אישי המשלבת:
+**Bought** is a personal financial management system that combines:
 
-- בוט WhatsApp חכם עם בינה מלאכותית למעקב אחר הוצאות והכנסות
-- לוח בקרה אינטראקטיבי לניתוח נתונים וויזואליזציה
-- ניהול יעדי חיסכון ותקציבים
-- סריקת קבלות אוטומטית עם Vision AI
-- דוחות וסיכומים חודשיים אוטומטיים
+- Smart AI-powered WhatsApp bot for tracking expenses and income
+- Interactive dashboard for data analysis and visualization
+- Savings goals and budget management
+- Automatic receipt scanning with Vision AI
+- Automated monthly reports and summaries
 
-## מבנה הפרויקט
+## Project Structure
 
 ```
 WhatsApp Bought (bot)
-├── bought-finance-bot/      # שרת Node.js + בוט WhatsApp
-│   ├── models/              # מודלים של MongoDB
+├── bought-finance-bot/      # Node.js server + WhatsApp bot
+│   ├── models/              # MongoDB models
 │   ├── routes/              # API endpoints
-│   ├── services/            # לוגיקה עסקית
-│   │   ├── ai/              # שירות AI
+│   ├── services/            # Business logic
+│   │   ├── ai/              # AI service
 │   │   │   ├── AIService.js
-│   │   │   └── prompts/     # פרומפטים מודולריים
+│   │   │   └── prompts/     # Modular prompts
 │   │   └── whatsapp.js
-│   ├── utils/               # פונקציות עזר
-│   ├── .env.example         # דוגמה למשתני סביבה
-│   ├── package.json         # תלויות
-│   └── server.js            # נקודת כניסה ראשית
-├── bought-dashboard/        # ממשק React
-│   ├── public/              # קבצים סטטיים
-│   ├── src/                 # קוד React
-│   └── package.json         # תלויות
-└── README.md               # המסמך הזה
+│   ├── utils/               # Utility functions
+│   ├── .env.example         # Environment variables example
+│   ├── package.json         # Dependencies
+│   └── server.js            # Main entry point
+├── bought-dashboard/        # React interface
+│   ├── public/              # Static files
+│   ├── src/                 # React code
+│   └── package.json         # Dependencies
+└── README.md               # This document
 ```
 
 ---
 
-## חלק 1: Bought Finance Bot
+## Part 1: Bought Finance Bot
 
-### תכונות עיקריות
+### Key Features
 
-#### ניהול פיננסי
+#### Financial Management
 
-- רישום אוטומטי של הוצאות והכנסות בעברית
-- יעדי חיסכון חכמים עם מעקב אוטומטי
-- סטטיסטיקות מפורטות (יומי, שבועי, חודשי)
-- ניהול תקציב חודשי לפי קטגוריות
-- התראות על חריגה מתקציב (מיידיות + יומיות)
-- סיכום חודשי אוטומטי בשעה 20:00 בסוף כל חודש
-- התראות יזומות יומיות בשעה 18:00
+- Automatic recording of expenses and income in Hebrew
+- Smart savings goals with automatic tracking
+- Detailed statistics (daily, weekly, monthly)
+- Monthly budget management by categories
+- Budget overspending alerts (instant + daily)
+- Automatic monthly summary at 8:00 PM at the end of each month
+- Proactive daily alerts at 6:00 PM
 
-#### בינה מלאכותית מתקדמת
+#### Advanced Artificial Intelligence
 
-- **סיכומים חודשיים בשפה טבעית** - תובנות אישיות ומעניינות
-- **זיהוי אנומליות אוטומטי** - זיהוי הוצאות חריגות
-- **המלצות חיסכון מותאמות אישית** - עצות מעשיות
-- **ייעוץ פיננסי חכם** - "האם אני יכול להרשות לעצמי...?"
-- **סריקת קבלות בצילום** - העלה תמונת קבלה וקבל חילוץ אוטומטי
+- **Natural language monthly summaries** - Personal and interesting insights
+- **Automatic anomaly detection** - Identifying unusual expenses
+- **Personalized savings recommendations** - Practical advice
+- **Smart financial consulting** - "Can I afford...?"
+- **Receipt scanning from photos** - Upload a receipt image and get automatic extraction
 
-#### אבטחה
+#### Security
 
-- אבטחה מלאה עם Helmet ו-Rate Limiting
-- MongoDB Sanitization והגנה מפני NoSQL Injection
+- Full security with Helmet and Rate Limiting
+- MongoDB Sanitization and NoSQL Injection protection
 
-### התקנה והרצה
+### Installation and Running
 
-#### דרישות מקדימות
+#### Prerequisites
 
-- Node.js (גרסה 16 ומעלה)
-- MongoDB (מקומי או Atlas)
-- חשבון OpenAI עם API Key
+- Node.js (version 16 and above)
+- MongoDB (local or Atlas)
+- OpenAI account with API Key
 
-#### שלבי התקנה
+#### Installation Steps
 
-1. **התקנת תלויות**
+1. **Install dependencies**
 
 ```bash
 cd bought-finance-bot
 npm install
 ```
 
-2. **הגדרת משתני סביבה**
+2. **Configure environment variables**
 
 ```bash
 cp .env.example .env
 ```
 
-ערוך את קובץ `.env`:
+Edit the `.env` file:
 
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
@@ -97,7 +97,7 @@ NODE_ENV=development
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 ```
 
-3. **הרצת הבוט**
+3. **Run the bot**
 
 ```bash
 # Development mode
@@ -107,111 +107,111 @@ npm run dev
 npm start
 ```
 
-4. **סריקת QR Code**
+4. **Scan QR Code**
 
-- פתח את WhatsApp במכשיר הנייד
-- לחץ על התפריט (⋮) > WhatsApp Web
-- סרוק את ה-QR Code שמופיע בטרמינל
+- Open WhatsApp on your mobile device
+- Click on the menu (⋮) > WhatsApp Web
+- Scan the QR Code that appears in the terminal
 
-### שימוש בבוט
+### Using the Bot
 
-#### רישום הוצאות
+#### Recording Expenses
 
-פשוט כתוב בשפה טבעית:
+Simply write in natural language:
 
-- "קניתי קפה ב-18 שקל"
-- "תדלקתי 300 ש״ח"
-- "קיבלתי משכורת 15000"
+- "Bought coffee for 18 shekels"
+- "Filled up gas for 300 NIS"
+- "Received salary 15000"
 
-או שלח תמונה של קבלה - הבוט יחלץ אוטומטית את כל הפרטים!
+Or send a picture of a receipt - the bot will automatically extract all the details!
 
-#### פקודות עיקריות
+#### Main Commands
 
-**סטטיסטיקות:**
+**Statistics:**
 
-- `כמה הוצאתי` / `מצב` - סיכום חודשי עם AI
-- `היום` - סיכום יומי
-- `השבוע` - סיכום שבועי
-- `קטגוריות` - פירוט לפי קטגוריות
+- `How much did I spend` / `Status` - Monthly summary with AI
+- `Today` - Daily summary
+- `This week` - Weekly summary
+- `Categories` - Breakdown by categories
 
-**יעדי חיסכון:**
+**Savings Goals:**
 
-- `/יעד` - יצירת יעד חדש
-- `היעדים` - הצגת כל היעדים
-- `התקדמות` - מעקב אחר יעד פעיל
+- `/goal` - Create new goal
+- `My goals` - Display all goals
+- `Progress` - Track active goal
 
-**ניהול:**
+**Management:**
 
-- `/תקציב` - הגדרת תקציב
-- `/עזרה` - מדריך שימוש
+- `/budget` - Set budget
+- `/help` - User guide
 
-#### קטגוריות זמינות
+#### Available Categories
 
-אוכל, תחבורה, קניות, חשבונות, בילויים, משכורת, בריאות, כללי
+Food, Transportation, Shopping, Bills, Entertainment, Salary, Health, General
 
 ### API Endpoints
 
 #### Transactions
 
 ```
-GET    /api/transactions          - קבלת כל הטרנזקציות
-GET    /api/transactions/:id      - קבלת טרנזקציה בודדת
-POST   /api/transactions          - יצירת טרנזקציה חדשה
-PUT    /api/transactions/:id      - עדכון טרנזקציה
-DELETE /api/transactions/:id      - מחיקת טרנזקציה
+GET    /api/transactions          - Get all transactions
+GET    /api/transactions/:id      - Get single transaction
+POST   /api/transactions          - Create new transaction
+PUT    /api/transactions/:id      - Update transaction
+DELETE /api/transactions/:id      - Delete transaction
 ```
 
 #### Statistics
 
 ```
-GET    /api/stats/daily           - סטטיסטיקות יומיות
-GET    /api/stats/weekly          - סטטיסטיקות שבועיות
-GET    /api/stats/monthly         - סטטיסטיקות חודשיות
-GET    /api/stats/categories      - סטטיסטיקות לפי קטגוריות
+GET    /api/stats/daily           - Daily statistics
+GET    /api/stats/weekly          - Weekly statistics
+GET    /api/stats/monthly         - Monthly statistics
+GET    /api/stats/categories      - Statistics by categories
 ```
 
 #### Budget
 
 ```
-GET    /api/budget                - קבלת תקציב
-GET    /api/budget/compare        - השוואת תקציב להוצאות
+GET    /api/budget                - Get budget
+GET    /api/budget/compare        - Compare budget to expenses
 ```
 
 #### Health
 
 ```
-GET    /api/health                - בדיקת תקינות השרת
+GET    /api/health                - Check server health
 ```
 
 ---
 
-## חלק 2: Bought Dashboard
+## Part 2: Bought Dashboard
 
-### תכונות לוח הבקרה
+### Dashboard Features
 
-- **ויזואליזציה מתקדמת** - גרפים אינטראקטיביים (עוגה, עמודות, קווים)
-- **ניתוח קטגוריות** - צפייה בפילוח הוצאות לפי קטגוריות
-- **דוחות חודשיים** - מעקב אחר מגמות לאורך זמן
-- **השוואת תקציב** - מעקב אחר ביצועים מול תקציב מתוכנן
-- **ממשק רספונסיבי** - תומך במובייל ודסקטופ
+- **Advanced visualization** - Interactive charts (pie, bar, line)
+- **Category analysis** - View expense breakdown by categories
+- **Monthly reports** - Track trends over time
+- **Budget comparison** - Monitor performance against planned budget
+- **Responsive interface** - Supports mobile and desktop
 
-### התקנה והרצה
+### Installation and Running
 
-1. **התקנת תלויות**
+1. **Install dependencies**
 
 ```bash
 cd bought-dashboard
 npm install
 ```
 
-2. **הגדרת משתני סביבה**
-   צור קובץ `.env` בתיקיית `bought-dashboard`:
+2. **Configure environment variables**
+   Create a `.env` file in the `bought-dashboard` directory:
 
 ```env
 REACT_APP_API_URL=http://localhost:3001
 ```
 
-3. **הרצת הדאשבורד**
+3. **Run the dashboard**
 
 ```bash
 # Development mode
@@ -221,9 +221,9 @@ npm start
 npm run build
 ```
 
-הדאשבורד יהיה זמין ב: `http://localhost:3000`
+The dashboard will be available at: `http://localhost:3000`
 
-### טכנולוגיות
+### Technologies
 
 - **Frontend**: React 19, TailwindCSS, Recharts
 - **HTTP Client**: Axios
@@ -232,107 +232,107 @@ npm run build
 
 ---
 
-## הרצה מלאה של המערכת
+## Running the Complete System
 
-להפעלה מלאה של המערכת יש להריץ **שני** שרתים במקביל:
+To run the complete system, you need to run **two** servers in parallel:
 
-### טרמינל 1 - Backend + WhatsApp Bot
+### Terminal 1 - Backend + WhatsApp Bot
 
 ```bash
 cd bought-finance-bot
 npm run dev
 ```
 
-### טרמינל 2 - Frontend Dashboard
+### Terminal 2 - Frontend Dashboard
 
 ```bash
 cd bought-dashboard
 npm start
 ```
 
-לאחר ההרצה:
+After running:
 
-1. סרוק את ה-QR Code ב-WhatsApp
-2. פתח את הדאשבורד בדפדפן: `http://localhost:3000`
-3. התחל לשלוח הוצאות בוואטסאפ או להוסיף ידנית בדאשבורד
+1. Scan the QR Code in WhatsApp
+2. Open the dashboard in browser: `http://localhost:3000`
+3. Start sending expenses via WhatsApp or add manually in the dashboard
 
 ---
 
-## דגשים טכניים
+## Technical Highlights
 
 ### Backend
 
-- **MongoDB Indexes** - אינדקסים אופטימליים לביצועים
-- **Multi-user Support** - תמיכה במספר משתמשים במקביל
-- **Error Handling** - טיפול מקיף בשגיאות
-- **Graceful Shutdown** - כיבוי מסודר של שירותים
-- **Scheduled Tasks** - משימות מתוזמנות עם node-cron
-- **Vision AI** - GPT-4o Vision לסריקת קבלות
+- **MongoDB Indexes** - Optimal indexes for performance
+- **Multi-user Support** - Support for multiple concurrent users
+- **Error Handling** - Comprehensive error handling
+- **Graceful Shutdown** - Orderly shutdown of services
+- **Scheduled Tasks** - Scheduled tasks with node-cron
+- **Vision AI** - GPT-4o Vision for receipt scanning
 
 ### Frontend
 
-- **Component Architecture** - ארכיטקטורה מודולרית
-- **Responsive Design** - תמיכה מלאה במובייל
-- **Real-time Updates** - עדכון אוטומטי של נתונים
-- **Error Boundaries** - טיפול בשגיאות ברמת הקומפוננטות
+- **Component Architecture** - Modular architecture
+- **Responsive Design** - Full mobile support
+- **Real-time Updates** - Automatic data updates
+- **Error Boundaries** - Component-level error handling
 
 ### Security
 
-- **Helmet** - הגנה מפני פגיעויות HTTP
-- **Rate Limiting** - 100 בקשות ל-15 דקות
-- **MongoDB Sanitization** - הגנה מפני NoSQL Injection
-- **CORS Protection** - הגבלת גישה לדומיינים מורשים
-- **Input Validation** - בדיקת תקינות קלט
+- **Helmet** - Protection against HTTP vulnerabilities
+- **Rate Limiting** - 100 requests per 15 minutes
+- **MongoDB Sanitization** - Protection against NoSQL Injection
+- **CORS Protection** - Restrict access to authorized domains
+- **Input Validation** - Input validation checks
 
 ---
 
 ## Troubleshooting
 
-### הבוט לא מתחבר ל-WhatsApp
+### Bot won't connect to WhatsApp
 
-- ודא ש-WhatsApp Web לא פעיל במכשיר אחר
-- מחק את התיקייה `.wwebjs_auth/` ונסה שוב
+- Make sure WhatsApp Web is not active on another device
+- Delete the `.wwebjs_auth/` folder and try again
 
-### שגיאות OpenAI
+### OpenAI Errors
 
-- בדוק שהמפתח תקין
-- ודא שיש קרדיט בחשבון OpenAI
-- בדוק את ה-rate limits
+- Verify the key is valid
+- Make sure there's credit in the OpenAI account
+- Check the rate limits
 
-### בעיות חיבור ל-MongoDB
+### MongoDB Connection Issues
 
-- ודא שה-IP שלך מורשה ב-MongoDB Atlas
-- בדוק את פרטי החיבור ב-.env
+- Make sure your IP is authorized in MongoDB Atlas
+- Check connection details in .env
 
-### הדאשבורד לא מתחבר לשרת
+### Dashboard won't connect to server
 
-- ודא שהשרת רץ על פורט 3001
-- בדוק את `REACT_APP_API_URL` ב-.env
-- בדוק CORS settings בשרת
-
----
-
-## אבטחת מפתחות
-
-**חשוב מאוד:**
-
-- אל תעלה קבצי `.env` ל-Git
-- שמור על מפתח OpenAI בסוד
-- החלף מיד מפתחות שנחשפו
-- השתמש במשתני סביבה בסביבת ייצור
+- Make sure the server is running on port 3001
+- Check `REACT_APP_API_URL` in .env
+- Check CORS settings on the server
 
 ---
 
-## רישיון
+## Key Security
+
+**Very important:**
+
+- Don't upload `.env` files to Git
+- Keep the OpenAI key secret
+- Immediately replace exposed keys
+- Use environment variables in production
+
+---
+
+## License
 
 MIT License
 
 ---
 
-## תמיכה
+## Support
 
-לשאלות ובעיות, פתח Issue ב-GitHub.
+For questions and issues, open an Issue on GitHub.
 
 ---
 
-**Bought** - המערכת החכמה ביותר לניהול פיננסי אישי בעברית
+**Bought** - The smartest system for personal financial management in Hebrew
