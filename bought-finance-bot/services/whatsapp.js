@@ -3,7 +3,7 @@ const qrcode = require('qrcode-terminal');
 const Transaction = require('../models/Transaction');
 const Budget = require('../models/Budget');
 const Goal = require('../models/Goal');
-const AIService = require('./ai');
+const AIService = require('./ai/AIService');
 const {
     getMonthlyStats,
     getDailyStats,
@@ -26,36 +26,36 @@ class WhatsAppBot {
         this.aiService = new AIService(openaiApiKey);
         this.isReady = false;
 
-        // מעקב אחר משתמשים שממתינים לכתוב יעד
+        // Track users waiting to enter a goal
         this.awaitingGoalInput = new Set();
 
         this.setupHandlers();
     }
 
     /**
-     * הגדרת ה-Handlers
+     * Setup event handlers
      */
     setupHandlers() {
         this.client.on('qr', (qr) => {
-            console.log('📱 סרוק את ה-QR Code:');
+            console.log('📱 Scan the QR Code:');
             qrcode.generate(qr, { small: true });
         });
 
         this.client.on('ready', () => {
-            console.log('🤖 Bought מוכן ומזומן!');
+            console.log('🤖 Bought is ready!');
             this.isReady = true;
         });
 
         this.client.on('authenticated', () => {
-            console.log('✅ אומתה בהצלחה');
+            console.log('✅ Authenticated successfully');
         });
 
         this.client.on('auth_failure', (msg) => {
-            console.error('❌ כשל באימות:', msg);
+            console.error('❌ Authentication failed:', msg);
         });
 
         this.client.on('disconnected', (reason) => {
-            console.log('❌ התנתק:', reason);
+            console.log('❌ Disconnected:', reason);
             this.isReady = false;
         });
 
@@ -65,66 +65,66 @@ class WhatsAppBot {
     }
 
     /**
-     * טיפול בהודעה
+     * Handle incoming message
      */
     async handleMessage(message) {
         try {
-            // התעלם מהודעות של הבוט עצמו
+            // Ignore messages from the bot itself
             if (message.fromMe) {
                 return;
             }
 
-            // התעלם מקבוצות
+            // Ignore group messages
             if (message.from.includes('@g.us')) {
                 return;
             }
 
-            // בדיקה אם יש מספר טלפון מוגדר - אם כן, אפשר רק למספר הזה
+            // Check if there's a phone number configured - if so, only allow that number
             const myPhoneNumber = process.env.MY_PHONE_NUMBER;
 
-            // אם אין מספר מוגדר, הדפס את המספרים שנכנסים (לעזרה בהגדרה)
+            // If no number is configured, print incoming numbers (to help with setup)
             if (!myPhoneNumber) {
-                console.log(`📞 הודעה מ: ${message.from}`);
-                console.log(`💡 הוסף את השורה הזו ל-.env כדי להגביל רק למספר הזה:`);
+                console.log(`📞 Message from: ${message.from}`);
+                console.log(`💡 Add this line to .env to restrict to this number only:`);
                 console.log(`   MY_PHONE_NUMBER=${message.from}`);
             }
 
             if (myPhoneNumber && message.from !== myPhoneNumber) {
-                console.log(`🚫 התעלמתי מהודעה מ-${message.from} (רק ${myPhoneNumber} מורשה)`);
+                console.log(`🚫 Ignored message from ${message.from} (only ${myPhoneNumber} is authorized)`);
                 return;
             }
 
             const userId = message.from;
 
-            // טיפול בהודעות תמונה (קבלות)
+            // Handle media messages (receipts)
             if (message.hasMedia) {
-                console.log(`📎 הודעה עם מדיה - סוג: ${message.type}`);
+                console.log(`📎 Message with media - type: ${message.type}`);
 
-                // בדיקה אם זו תמונה
+                // Check if it's an image
                 if (message.type === 'image') {
                     await this.handleReceiptImage(message);
                     return;
                 }
 
-                // התעלם מסוגי מדיה אחרים (video, audio, document, ptt)
-                console.log(`ℹ️ מתעלם ממדיה מסוג: ${message.type}`);
+                // Ignore other media types (video, audio, document, ptt)
+                console.log(`ℹ️ Ignoring media of type: ${message.type}`);
                 return;
             }
 
-            // התעלם מהודעות ריקות או קצרות מדי
+            // Ignore empty or too short messages
             if (!message.body || message.body.length < 2) {
                 return;
             }
 
             const text = message.body.trim().toLowerCase();
 
-            // בדיקה אם המשתמש ממתין להזין יעד
+            // Check if user is waiting to enter a goal
             if (this.awaitingGoalInput.has(userId)) {
                 await this.processGoalInput(message);
                 return;
             }
 
-            // בדיקה אם המשתמש צריך להגדיר תקציב
+            // Check if user needs to set up budget
             const userBudget = await Budget.findOne({ userId });
 
             if (!userBudget || !userBudget.setupCompleted) {
@@ -132,39 +132,39 @@ class WhatsAppBot {
                 return;
             }
 
-            // פקודת עזרה
+            // Help command
             if (text === '/עזרה' || text === 'עזרה' || text === '?' || text === '/help') {
                 await this.sendHelpMessage(message);
                 return;
             }
 
-            // פקודת הגדרת תקציב מחדש
+            // Reset budget setup command
             if (text === '/תקציב' || text === 'תקציב חדש' || text === 'הגדר תקציב') {
                 await this.resetBudgetSetup(userId);
                 await message.reply('🔄 אוקיי, בוא נגדיר את התקציב מחדש!\n\nכמה אתה רוצה להוציא על *אוכל* בחודש? (בשקלים)');
                 return;
             }
 
-            // סטטיסטיקות יומיות
+            // Daily statistics
             if (text.includes('היום') || text.includes('כמה הוצאתי היום')) {
                 await this.sendDailyStats(message);
                 return;
             }
 
-            // סטטיסטיקות שבועיות
+            // Weekly statistics
             if (text.includes('השבוע') || text.includes('שבועי')) {
                 await this.sendWeeklyStats(message);
                 return;
             }
 
-            // סטטיסטיקות חודשיות
-            if (text.includes('החודש') || text.includes('כמה הוצאתי') || 
+            // Monthly statistics
+            if (text.includes('החודש') || text.includes('כמה הוצאתי') ||
                 text.includes('מצב') || text.includes('סיכום')) {
                 await this.sendMonthlyStats(message);
                 return;
             }
 
-            // סטטיסטיקות קטגוריות
+            // Category statistics
             if (text.includes('קטגוריות') || text.includes('פירוט') ||
                 text.includes('הוצאות חודשיות') || text.includes('פירוט הוצאות') ||
                 text.includes('סיכום הוצאות')) {
@@ -172,7 +172,7 @@ class WhatsAppBot {
                 return;
             }
 
-            // ניהול יעדי חיסכון
+            // Savings goals management
             if (text.includes('/יעד') || text.includes('יעד חדש') || text.includes('יעד חיסכון')) {
                 await this.handleGoalCreation(message);
                 return;
@@ -188,24 +188,24 @@ class WhatsAppBot {
                 return;
             }
 
-            // שאלות יעוץ פיננסי
+            // Financial advice questions
             if (text.includes('האם אני יכול') || text.includes('האם אפשר') ||
                 text.includes('להרשות לעצמי') || text.includes('כדאי לקנות')) {
                 await this.handleFinancialAdvice(message);
                 return;
             }
 
-            // ניתוח הודעה רגילה עם AI
+            // Parse regular message with AI
             await this.processFinancialMessage(message);
 
         } catch (error) {
-            console.error('❌ שגיאה בטיפול בהודעה:', error);
+            console.error('❌ Error handling message:', error);
             await message.reply('⚠️ מצטער, היתה בעיה בעיבוד ההודעה. נסה שוב.');
         }
     }
 
     /**
-     * טיפול בהגדרת תקציב
+     * Handle budget setup
      */
     async handleBudgetSetup(message, userId, userBudget) {
         const categories = ['אוכל', 'תחבורה', 'קניות', 'חשבונות', 'בילויים', 'בריאות', 'כללי'];
@@ -219,7 +219,7 @@ class WhatsAppBot {
             'כללי': '📦'
         };
 
-        // אם אין משתמש, צור חדש
+        // If no user exists, create new one
         if (!userBudget) {
             userBudget = await Budget.create({
                 userId,
@@ -241,35 +241,35 @@ class WhatsAppBot {
         const text = message.body.trim();
         const amount = parseInt(text.replace(/[^\d]/g, ''));
 
-        // אם הסכום לא תקין
+        // If the amount is invalid
         if (isNaN(amount) || amount < 0) {
             await message.reply('❌ אנא כתוב סכום תקין במספרים בלבד (לדוגמה: 1500)');
             return;
         }
 
-        // שמור את הסכום לקטגוריה הנוכחית
+        // Save amount for current category
         const currentCategory = categories[currentStep];
         userBudget.categories[currentCategory] = amount;
-        
-        // עבור לשלב הבא
+
+        // Move to next step
         userBudget.setupStep = currentStep + 1;
 
-        // אם סיימנו את כל הקטגוריות
+        // If we finished all categories
         if (userBudget.setupStep >= categories.length) {
             userBudget.setupCompleted = true;
             await userBudget.save();
 
-            // שלח סיכום
+            // Send summary
             let summary = '🎉 *מעולה! התקציב שלך הוגדר בהצלחה!*\n\n';
             summary += '📊 *התקציב החודשי שלך:*\n\n';
-            
+
             let totalBudget = 0;
             categories.forEach(cat => {
                 const budget = userBudget.categories[cat];
                 totalBudget += budget;
                 summary += `${categoryEmojis[cat]}  ${cat}: ${budget.toLocaleString()} ₪\n`;
             });
-            
+
             summary += `\n━━━━━━━━━━━━━━━━━\n`;
             summary += `💰 *סה״כ תקציב: ${totalBudget.toLocaleString()} ₪*\n\n`;
             summary += `✨ עכשיו אתה יכול להתחיל לרשום הוצאות!\n`;
@@ -280,11 +280,11 @@ class WhatsAppBot {
             return;
         }
 
-        // המשך לקטגוריה הבאה
+        // Continue to next category
         await userBudget.save();
         const nextCategory = categories[userBudget.setupStep];
         const emoji = categoryEmojis[nextCategory];
-        
+
         await message.reply(
             `✅ נשמר!\n\n` +
             `כמה אתה רוצה להוציא על *${emoji} ${nextCategory}* בחודש?\n` +
@@ -293,7 +293,7 @@ class WhatsAppBot {
     }
 
     /**
-     * איפוס הגדרות תקציב
+     * Reset budget settings
      */
     async resetBudgetSetup(userId) {
         await Budget.findOneAndUpdate(
@@ -316,66 +316,66 @@ class WhatsAppBot {
     }
 
     /**
-     * טיפול בתמונת קבלה
+     * Handle receipt image
      */
     async handleReceiptImage(message) {
         try {
-            console.log('📸 התקבלה תמונת קבלה מ:', message.from);
+            console.log('📸 Received receipt image from:', message.from);
 
-            // שליחת הודעת המתנה
+            // Send waiting message
             await message.reply('📸 מעבד את הקבלה... רגע אחד ⏳');
 
-            // הורדת התמונה
-            console.log('⬇️ מוריד את התמונה...');
+            // Download image
+            console.log('⬇️ Downloading image...');
             const media = await message.downloadMedia();
 
             if (!media) {
-                console.error('❌ לא הצלחתי להוריד את המדיה');
+                console.error('❌ Failed to download media');
                 await message.reply('⚠️ שגיאה בהורדת התמונה, נסה שוב');
                 return;
             }
 
-            console.log(`✅ תמונה הורדה - גודל: ${media.data.length} bytes, mimetype: ${media.mimetype}`);
+            console.log(`✅ Image downloaded - size: ${media.data.length} bytes, mimetype: ${media.mimetype}`);
 
-            // וידוא שזו תמונה
+            // Verify it's an image
             if (!media.mimetype || !media.mimetype.startsWith('image/')) {
-                console.error('❌ הקובץ אינו תמונה:', media.mimetype);
+                console.error('❌ File is not an image:', media.mimetype);
                 await message.reply('⚠️ אנא שלח קובץ תמונה (JPG, PNG)');
                 return;
             }
 
-            // המרה ל-base64 (media.data כבר base64)
+            // Convert to base64 (media.data is already base64)
             const imageBase64 = media.data;
 
-            // ניתוח הקבלה עם AI
-            console.log('🤖 שולח ל-AI לניתוח...');
+            // Parse receipt with AI
+            console.log('🤖 Sending to AI for analysis...');
             const transaction = await this.aiService.parseReceipt(imageBase64);
 
             if (!transaction) {
-                console.log('⚠️ AI לא זיהה מידע פיננסי בתמונה');
+                console.log('⚠️ AI did not detect financial information in image');
                 await message.reply('⚠️ לא הצלחתי לזהות מידע פיננסי בקבלה.\n\n💡 טיפ: ודא שהקבלה ברורה ושהסכום הכולל נראה בבירור.\n\n📝 אפשר גם לכתוב ידנית: "קניתי X ב-Y שקל"');
                 return;
             }
 
-            console.log(`✅ AI זיהה: ${transaction.description} - ${transaction.amount}₪`);
+            console.log(`✅ AI detected: ${transaction.description} - ${transaction.amount}₪`);
 
-            // שמירה במסד נתונים
+            // Save to database
             const saved = await Transaction.create({
                 ...transaction,
                 userId: message.from,
                 source: 'whatsapp-receipt'
             });
 
-            console.log(`💾 נשמר מקבלה: ${saved.description} - ${saved.amount}₪`);
+            console.log(`💾 Saved from receipt: ${saved.description} - ${saved.amount}₪`);
 
-            // תגובה מפורטת למשתמש
+            // Detailed response to user
             const typeEmoji = transaction.type === 'income' ? '💰' : '💸';
             let reply = `✅ קלטתי את הקבלה!\n\n` +
                 `${typeEmoji} ${transaction.description}\n` +
                 `📁 ${transaction.category}\n` +
                 `💵 ${transaction.amount.toLocaleString()}₪`;
 
-            // הוספת מידע נוסף אם יש
+            // Add additional information if available
             if (transaction.merchant) {
                 reply += `\n🏪 ${transaction.merchant}`;
             }
@@ -389,20 +389,20 @@ class WhatsAppBot {
 
             await message.reply(reply);
 
-            // בדיקת חריגה מתקציב (רק להוצאות)
+            // Check budget alert (expenses only)
             if (transaction.type === 'expense') {
                 await this.checkBudgetAlert(message, transaction.category);
             }
 
         } catch (error) {
-            console.error('❌ שגיאה בעיבוד קבלה:', error);
-            console.error('פרטי שגיאה:', {
+            console.error('❌ Error processing receipt:', error);
+            console.error('Error details:', {
                 message: error.message,
                 code: error.code,
                 status: error.status
             });
 
-            // הודעות שגיאה ספציפיות
+            // Specific error messages
             let errorMsg = '⚠️ מצטער, היתה בעיה בעיבוד הקבלה.\n\n';
 
             if (error.message && error.message.includes('מכסה')) {
@@ -424,7 +424,7 @@ class WhatsAppBot {
     }
 
     /**
-     * עיבוד הודעה פיננסית
+     * Process financial message
      */
     async processFinancialMessage(message) {
         try {
@@ -434,16 +434,16 @@ class WhatsAppBot {
                 return;
             }
 
-            // שמירה במסד נתונים
+            // Save to database
             const saved = await Transaction.create({
                 ...transaction,
                 userId: message.from,
                 source: 'whatsapp'
             });
 
-            console.log(`💾 נשמר: ${saved.description} - ${saved.amount}₪`);
+            console.log(`💾 Saved: ${saved.description} - ${saved.amount}₪`);
 
-            // תגובה למשתמש
+            // Reply to user
             const typeEmoji = transaction.type === 'income' ? '💰' : '💸';
             let reply = `✅ רשמתי:\n` +
                 `${typeEmoji} ${transaction.description}\n` +
@@ -452,19 +452,19 @@ class WhatsAppBot {
 
             await message.reply(reply);
 
-            // בדיקת חריגה מתקציב (רק להוצאות)
+            // Check budget alert (expenses only)
             if (transaction.type === 'expense') {
                 await this.checkBudgetAlert(message, transaction.category);
             }
 
         } catch (error) {
-            console.error('❌ שגיאה בעיבוד:', error);
+            console.error('❌ Error processing:', error);
             throw error;
         }
     }
 
     /**
-     * בדיקה והתראה על חריגה מתקציב
+     * Check and alert for budget overrun
      */
     async checkBudgetAlert(message, category) {
         try {
@@ -476,7 +476,7 @@ class WhatsAppBot {
             const categoryBudget = userBudget.categories[category];
             if (!categoryBudget || categoryBudget === 0) return;
 
-            // חישוב הוצאות לקטגוריה זו החודש
+            // Calculate expenses for this category this month
             const startOfMonth = new Date();
             startOfMonth.setDate(1);
             startOfMonth.setHours(0, 0, 0, 0);
@@ -492,7 +492,7 @@ class WhatsAppBot {
             const percentage = Math.round((totalSpent / categoryBudget) * 100);
             const remaining = categoryBudget - totalSpent;
 
-            // התראות לפי אחוזים
+            // Alerts by percentage
             if (percentage >= 100) {
                 await message.reply(
                     `🚨 *התראת תקציב!*\n\n` +
@@ -516,12 +516,12 @@ class WhatsAppBot {
             }
 
         } catch (error) {
-            console.error('❌ שגיאה בבדיקת תקציב:', error);
+            console.error('❌ Error checking budget:', error);
         }
     }
 
     /**
-     * שליחת סטטיסטיקות יומיות
+     * Send daily statistics
      */
     async sendDailyStats(message) {
         try {
@@ -530,13 +530,13 @@ class WhatsAppBot {
             const formatted = formatStatsMessage(stats, 'היום');
             await message.reply(formatted);
         } catch (error) {
-            console.error('❌ שגיאה בסטטיסטיקות יומיות:', error);
+            console.error('❌ Error in daily statistics:', error);
             await message.reply('⚠️ שגיאה בשליפת נתונים יומיים');
         }
     }
 
     /**
-     * שליחת סטטיסטיקות שבועיות
+     * Send weekly statistics
      */
     async sendWeeklyStats(message) {
         try {
@@ -545,13 +545,13 @@ class WhatsAppBot {
             const formatted = formatStatsMessage(stats, 'השבוע');
             await message.reply(formatted);
         } catch (error) {
-            console.error('❌ שגיאה בסטטיסטיקות שבועיות:', error);
+            console.error('❌ Error in weekly statistics:', error);
             await message.reply('⚠️ שגיאה בשליפת נתונים שבועיים');
         }
     }
 
     /**
-     * שליחת סטטיסטיקות חודשיות
+     * Send monthly statistics
      */
     async sendMonthlyStats(message) {
         try {
@@ -560,13 +560,13 @@ class WhatsAppBot {
             const formatted = formatStatsMessage(stats, 'החודש');
             await message.reply(formatted);
         } catch (error) {
-            console.error('❌ שגיאה בסטטיסטיקות חודשיות:', error);
+            console.error('❌ Error in monthly statistics:', error);
             await message.reply('⚠️ שגיאה בשליפת נתונים חודשיים');
         }
     }
 
     /**
-     * שליחת סטטיסטיקות לפי קטגוריות (סגנון RiseUp)
+     * Send category statistics (RiseUp style)
      */
     async sendCategoryStats(message) {
         try {
@@ -607,13 +607,13 @@ class WhatsAppBot {
 
             await message.reply(msg);
         } catch (error) {
-            console.error('❌ שגיאה בסטטיסטיקות קטגוריות:', error);
+            console.error('❌ Error in category statistics:', error);
             await message.reply('⚠️ שגיאה בשליפת נתוני קטגוריות');
         }
     }
 
     /**
-     * שליחת הודעת עזרה
+     * Send help message
      */
     async sendHelpMessage(message) {
         const helpText = `🤖 *Bought - מדריך שימוש*
@@ -655,24 +655,24 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
     }
 
     /**
-     * התחלת הבוט
+     * Start the bot
      */
     async start() {
         try {
-            console.log('🔄 מאתחל את הבוט...');
+            console.log('🔄 Initializing bot...');
             await this.client.initialize();
         } catch (error) {
-            console.error('❌ שגיאה באתחול:', error);
+            console.error('❌ Error initializing:', error);
             throw error;
         }
     }
 
     /**
-     * בדיקה יזומה של כל התקציבים ושליחת התראות למשתמשים
+     * Proactive check of all budgets and send alerts to users
      */
     async checkAllBudgetsAndAlert() {
         try {
-            console.log('🔍 בודק תקציבים של כל המשתמשים...');
+            console.log('🔍 Checking budgets for all users...');
 
             const budgets = await Budget.find({ setupCompleted: true });
 
@@ -686,12 +686,12 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
                     const categories = ['אוכל', 'תחבורה', 'קניות', 'חשבונות', 'בילויים', 'בריאות', 'כללי'];
                     const alerts = [];
 
-                    // בדיקת כל קטגוריה
+                    // Check each category
                     for (const category of categories) {
                         const categoryBudget = budget.categories[category];
                         if (!categoryBudget || categoryBudget === 0) continue;
 
-                        // חישוב הוצאות לקטגוריה זו החודש
+                        // Calculate expenses for this category this month
                         const transactions = await Transaction.find({
                             userId,
                             type: 'expense',
@@ -703,7 +703,7 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
                         const percentage = Math.round((totalSpent / categoryBudget) * 100);
                         const remaining = categoryBudget - totalSpent;
 
-                        // איסוף התראות
+                        // Collect alerts
                         if (percentage >= 100) {
                             alerts.push({
                                 type: 'over',
@@ -725,7 +725,7 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
                         }
                     }
 
-                    // שליחת התראה אם יש
+                    // Send alert if there are any
                     if (alerts.length > 0) {
                         let message = '⚠️ *התראת תקציב יומית*\n\n';
 
@@ -751,31 +751,31 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
                         message += '💡 *טיפ:* התחל לצמצם הוצאות בקטגוריות אלה כדי להישאר בתקציב.';
 
                         await this.client.sendMessage(userId, message);
-                        console.log(`✅ התראת תקציב נשלחה ל-${userId}`);
+                        console.log(`✅ Budget alert sent to ${userId}`);
 
-                        // המתנה קצרה בין הודעות
+                        // Short wait between messages
                         await new Promise(resolve => setTimeout(resolve, 2000));
                     }
 
                 } catch (error) {
-                    console.error(`❌ שגיאה בבדיקת תקציב ל-${budget.userId}:`, error.message);
+                    console.error(`❌ Error checking budget for ${budget.userId}:`, error.message);
                 }
             }
 
-            console.log('✅ בדיקת תקציבים הושלמה');
+            console.log('✅ Budget check completed');
         } catch (error) {
-            console.error('❌ שגיאה בבדיקת תקציבים:', error);
+            console.error('❌ Error checking budgets:', error);
         }
     }
 
     /**
-     * שליחת סיכום חודשי לכל המשתמשים - עם תובנות AI
+     * Send monthly summary to all users - with AI insights
      */
     async sendMonthlyReportToAllUsers() {
         try {
-            console.log('📅 שולח סיכום חודשי לכל המשתמשים...');
+            console.log('📅 Sending monthly summary to all users...');
 
-            // קבלת כל המשתמשים עם תקציב מוגדר
+            // Get all users with configured budget
             const budgets = await Budget.find({ setupCompleted: true });
 
             for (const budget of budgets) {
@@ -786,26 +786,26 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
                         continue;
                     }
 
-                    // קבלת נתונים מהחודש הקודם להשוואה
+                    // Get data from previous month for comparison
                     const previousMonthData = await this.getPreviousMonthData(budget.userId);
 
-                    // יצירת סיכום בשפה טבעית עם AI
+                    // Generate natural language summary with AI
                     const aiSummary = await this.aiService.generateMonthlySummaryWithInsights(
                         budget.userId,
                         comparison,
                         previousMonthData
                     );
 
-                    // בניית ההודעה
+                    // Build the message
                     let message = '🎊 *סיכום חודשי - ' + new Date().toLocaleDateString('he-IL', { month: 'long', year: 'numeric' }) + '*\n\n';
 
-                    // תובנות AI
+                    // AI insights
                     if (aiSummary) {
                         message += `${aiSummary}\n\n`;
                         message += '━━━━━━━━━━━━━━━━\n\n';
                     }
 
-                    // נתונים מספריים
+                    // Numerical data
                     message += `📊 *נתונים:*\n`;
                     message += `💰 תקציב: ${comparison.totalBudget.toLocaleString()} ₪\n`;
                     message += `💸 הוצאת: ${comparison.totalSpent.toLocaleString()} ₪\n`;
@@ -817,11 +817,11 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
                         message += `⚠️ חריגה: ${Math.abs(comparison.totalSaved).toLocaleString()} ₪\n`;
                     }
 
-                    // זיהוי אנומליות - הוצאות חריגות
+                    // Detect anomalies - unusual expenses
                     const currentMonth = await this.getCurrentMonthExpenses(budget.userId);
                     const historicalExpenses = await this.getHistoricalExpenses(budget.userId, 3);
 
-                    if (historicalExpenses.length >= 20) { // רק אם יש מספיק היסטוריה
+                    if (historicalExpenses.length >= 20) { // Only if there's enough history
                         const anomalies = await this.aiService.detectAnomalies(
                             budget.userId,
                             currentMonth,
@@ -833,7 +833,7 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
                         }
                     }
 
-                    // המלצות חיסכון אישיות
+                    // Personal savings recommendations
                     const monthlyExpenses = await Transaction.find({
                         userId: budget.userId,
                         type: 'expense',
@@ -852,26 +852,26 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
                         message += `\n\n💡 *המלצה לחיסכון:*\n${savingsSuggestion}`;
                     }
 
-                    // שליחת ההודעה
+                    // Send the message
                     await this.client.sendMessage(budget.userId, message);
-                    console.log(`✅ סיכום חודשי נשלח ל-${budget.userId}`);
+                    console.log(`✅ Monthly summary sent to ${budget.userId}`);
 
-                    // המתנה קצרה בין הודעות כדי לא להיחסם
+                    // Short wait between messages to avoid blocking
                     await new Promise(resolve => setTimeout(resolve, 3000));
 
                 } catch (error) {
-                    console.error(`❌ שגיאה בשליחת סיכום ל-${budget.userId}:`, error.message);
+                    console.error(`❌ Error sending summary to ${budget.userId}:`, error.message);
                 }
             }
 
-            console.log('✅ סיכום חודשי נשלח לכל המשתמשים');
+            console.log('✅ Monthly summary sent to all users');
         } catch (error) {
-            console.error('❌ שגיאה בשליחת סיכומים חודשיים:', error);
+            console.error('❌ Error sending monthly summaries:', error);
         }
     }
 
     /**
-     * קבלת נתוני חודש קודם להשוואה
+     * Get previous month data for comparison
      */
     async getPreviousMonthData(userId) {
         try {
@@ -890,13 +890,13 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
 
             return { totalSpent };
         } catch (error) {
-            console.error('❌ שגיאה בקבלת נתוני חודש קודם:', error.message);
+            console.error('❌ Error getting previous month data:', error.message);
             return null;
         }
     }
 
     /**
-     * קבלת הוצאות החודש הנוכחי לפי קטגוריה
+     * Get current month expenses by category
      */
     async getCurrentMonthExpenses(userId) {
         try {
@@ -920,13 +920,13 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
 
             return categoryTotals;
         } catch (error) {
-            console.error('❌ שגיאה בקבלת הוצאות חודש נוכחי:', error.message);
+            console.error('❌ Error getting current month expenses:', error.message);
             return {};
         }
     }
 
     /**
-     * קבלת נתוני הוצאות היסטוריים
+     * Get historical expense data
      */
     async getHistoricalExpenses(userId, months = 3) {
         try {
@@ -941,19 +941,19 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
 
             return expenses;
         } catch (error) {
-            console.error('❌ שגיאה בקבלת נתונים היסטוריים:', error.message);
+            console.error('❌ Error getting historical data:', error.message);
             return [];
         }
     }
 
     /**
-     * יצירת יעד חיסכון חדש - מעבר למצב המתנה לקלט
+     * Create new savings goal - enter waiting mode for input
      */
     async handleGoalCreation(message) {
         try {
             const userId = message.from;
 
-            // הוספה למצב המתנה
+            // Add to waiting mode
             this.awaitingGoalInput.add(userId);
 
             await message.reply(
@@ -967,20 +967,20 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
             );
 
         } catch (error) {
-            console.error('❌ שגיאה ביצירת יעד:', error);
+            console.error('❌ Error creating goal:', error);
             await message.reply('⚠️ היתה בעיה ביצירת היעד');
         }
     }
 
     /**
-     * עיבוד קלט יעד מהמשתמש
+     * Process goal input from user
      */
     async processGoalInput(message) {
         try {
             const userId = message.from;
             const text = message.body.trim();
 
-            // בדיקת ביטול
+            // Check for cancellation
             if (text.toLowerCase() === 'ביטול' || text.toLowerCase() === 'cancel') {
                 this.awaitingGoalInput.delete(userId);
                 await message.reply('❌ יצירת היעד בוטלה');
@@ -989,7 +989,7 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
 
             await message.reply('🤔 מנתח את היעד...');
 
-            // שימוש בפרסור AI
+            // Use AI parser
             const goalData = await this.aiService.parseGoalFromText(text);
 
             if (!goalData) {
@@ -1004,16 +1004,16 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
                 return;
             }
 
-            // יצירת היעד
+            // Create the goal
             const goal = await Goal.create({
                 userId,
                 ...goalData
             });
 
-            // הסרה ממצב המתנה
+            // Remove from waiting mode
             this.awaitingGoalInput.delete(userId);
 
-            // הודעת אישור
+            // Confirmation message
             const progress = goal.getProgressSummary();
             let confirmMsg = `✅ *יעד נוצר בהצלחה!*\n\n`;
             confirmMsg += `🎯 *${goal.title}*\n`;
@@ -1035,17 +1035,17 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
             confirmMsg += `\n💡 כתוב "היעדים" לראות את כל היעדים שלך`;
 
             await message.reply(confirmMsg);
-            console.log(`✅ יעד חדש נוצר: ${goal.title} (${goal.targetAmount}₪)`);
+            console.log(`✅ New goal created: ${goal.title} (${goal.targetAmount}₪)`);
 
         } catch (error) {
-            console.error('❌ שגיאה בעיבוד יעד:', error);
+            console.error('❌ Error processing goal:', error);
             this.awaitingGoalInput.delete(message.from);
             await message.reply('⚠️ אופס, משהו השתבש. נסה שוב מאוחר יותר.');
         }
     }
 
     /**
-     * הצגת כל היעדים
+     * Show all goals
      */
     async showGoals(message) {
         try {
@@ -1099,13 +1099,13 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
             await message.reply(msg);
 
         } catch (error) {
-            console.error('❌ שגיאה בהצגת יעדים:', error);
+            console.error('❌ Error showing goals:', error);
             await message.reply('⚠️ היתה בעיה בהצגת היעדים');
         }
     }
 
     /**
-     * הצגת התקדמות יעד ספציפי
+     * Show specific goal progress
      */
     async showGoalProgress(message) {
         try {
@@ -1118,7 +1118,7 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
                 return;
             }
 
-            // נניח שרוצים לראות את היעד הראשון או האחרון שנוצר
+            // Assume we want to see the first or latest created goal
             const goal = activeGoals[0];
             const progress = goal.getProgressSummary();
 
@@ -1145,7 +1145,7 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
                 msg += `   שבועי: ${progress.weeklyTarget.toLocaleString()} ₪\n`;
                 msg += `   חודשי: ${progress.monthlyTarget.toLocaleString()} ₪\n\n`;
 
-                // חישוב האם בקצב טוב
+                // Calculate if on good pace
                 const daysElapsed = Math.ceil((new Date() - goal.createdAt) / (1000 * 60 * 60 * 24));
                 const expectedProgress = (daysElapsed / progress.timeRemaining.days) * 100;
 
@@ -1161,13 +1161,13 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
             await message.reply(msg);
 
         } catch (error) {
-            console.error('❌ שגיאה בהצגת התקדמות:', error);
+            console.error('❌ Error showing progress:', error);
             await message.reply('⚠️ היתה בעיה בהצגת ההתקדמות');
         }
     }
 
     /**
-     * יצירת פס התקדמות ויזואלי
+     * Create visual progress bar
      */
     createProgressBar(percentage) {
         const filled = Math.floor(percentage / 10);
@@ -1176,7 +1176,7 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
     }
 
     /**
-     * מתן ייעוץ פיננסי אישי עם AI
+     * Provide personal financial advice with AI
      */
     async handleFinancialAdvice(message) {
         try {
@@ -1185,15 +1185,15 @@ _הקלד /עזרה בכל עת לראות הודעה זו_`;
 
             await message.reply('🤔 בודק את המצב הפיננסי שלך...');
 
-            // קבלת נתונים פיננסיים
+            // Get financial data
             const budget = await Budget.findOne({ userId, setupCompleted: true });
             const monthlyStats = await getMonthlyStats(userId);
             const goals = await Goal.find({ userId, status: 'active' });
 
-            // חישוב יתרה זמינה
+            // Calculate available balance
             const availableBalance = monthlyStats.balance;
 
-            // שליחה ל-AI לניתוח
+            // Send to AI for analysis
             const prompt = `המשתמש שואל: "${question}"
 
 נתונים פיננסיים:
@@ -1229,20 +1229,20 @@ ${goals.length > 0 ? `- יעדי חיסכון פעילים: ${goals.length}` : '
             await message.reply(`💡 *ייעוץ פיננסי אישי*\n\n${advice}`);
 
         } catch (error) {
-            console.error('❌ שגיאה במתן ייעוץ:', error);
+            console.error('❌ Error providing advice:', error);
             await message.reply('⚠️ היתה בעיה במתן הייעוץ');
         }
     }
 
     /**
-     * כיבוי הבוט
+     * Stop the bot
      */
     async stop() {
         try {
             await this.client.destroy();
-            console.log('👋 הבוט כובה');
+            console.log('👋 Bot stopped');
         } catch (error) {
-            console.error('❌ שגיאה בכיבוי:', error);
+            console.error('❌ Error stopping:', error);
         }
     }
 }

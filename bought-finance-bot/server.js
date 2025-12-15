@@ -7,10 +7,9 @@ const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const cron = require('node-cron');
 const WhatsAppBot = require('./services/whatsapp');
-const WhatsAppBusinessAPI = require('./services/whatsapp-business');
 const apiRoutes = require('./routes/api');
 
-// יצירת אפליקציית Express
+// Create Express application
 const app = express();
 
 // Security Middleware
@@ -21,7 +20,7 @@ app.use(mongoSanitize());
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
-    message: 'יותר מדי בקשות מה-IP הזה, נסה שוב מאוחר יותר',
+    message: 'Too many requests from this IP, please try again later',
     standardHeaders: true,
     legacyHeaders: false
 });
@@ -38,58 +37,35 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
-// בדיקת משתני סביבה
+// Check environment variables
 const { OPENAI_API_KEY, MONGO_URI, PORT = 3001, NODE_ENV = 'development' } = process.env;
 
 if (!OPENAI_API_KEY || !MONGO_URI) {
-    console.error('❌ ERROR: חסרים משתני סביבה חיוניים!');
-    console.error('   יש להגדיר OPENAI_API_KEY ו־MONGO_URI בקובץ .env');
+    console.error('❌ ERROR: Missing required environment variables!');
+    console.error('   Please set OPENAI_API_KEY and MONGO_URI in .env file');
     process.exit(1);
 }
 
-// חיבור ל-MongoDB
+// Connect to MongoDB
 mongoose.connect(MONGO_URI)
     .then(() => {
-        console.log('✅ מחובר ל-MongoDB בהצלחה');
+        console.log('✅ Connected to MongoDB successfully');
         console.log(`📊 Database: ${mongoose.connection.name}`);
     })
     .catch(err => {
-        console.error('❌ שגיאה בחיבור ל-MongoDB:', err.message);
+        console.error('❌ MongoDB connection error:', err.message);
         process.exit(1);
     });
 
-// טיפול באירועי MongoDB
+// Handle MongoDB events
 mongoose.connection.on('disconnected', () => {
-    console.log('⚠️ MongoDB התנתק');
+    console.log('⚠️ MongoDB disconnected');
 });
 
 mongoose.connection.on('error', (err) => {
-    console.error('❌ שגיאת MongoDB:', err);
+    console.error('❌ MongoDB error:', err);
 });
 
-// בחירה בין WhatsApp Web.js או Business API
-const USE_BUSINESS_API = process.env.WHATSAPP_ACCESS_TOKEN ? true : false;
-
-// אתחול WhatsApp Business API (אם קיים)
-let whatsappBusiness;
-if (USE_BUSINESS_API) {
-    whatsappBusiness = new WhatsAppBusinessAPI({
-        apiVersion: process.env.WHATSAPP_API_VERSION || 'v21.0',
-        accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
-        phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
-        businessAccountId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID,
-        verifyToken: process.env.WHATSAPP_VERIFY_TOKEN,
-        openaiApiKey: OPENAI_API_KEY
-    });
-
-    // Webhook routes
-    const webhookRoutes = require('./routes/webhook')(whatsappBusiness);
-    app.use('/webhook', webhookRoutes);
-
-    console.log('📱 WhatsApp Business API mode enabled');
-} else {
-    console.log('📱 WhatsApp Web.js mode enabled');
-}
 
 // Routes
 app.use('/api', apiRoutes);
@@ -159,96 +135,88 @@ app.use((err, req, res, next) => {
     });
 });
 
-// הפעלת השרת
+// Start server
 const server = app.listen(PORT, () => {
-    console.log('═══════════════════════════════════════');
     console.log('🤖 Bought Finance Bot Started');
-    console.log('═══════════════════════════════════════');
     console.log(`🌐 API Server: http://localhost:${PORT}`);
     console.log(`📝 Environment: ${NODE_ENV}`);
     console.log(`🤖 OpenAI: Connected`);
-    console.log('═══════════════════════════════════════');
 });
 
-// יצירה והפעלת בוט WhatsApp (רק אם לא משתמשים ב-Business API)
+// Initialize WhatsApp bot
 let whatsappBot;
 
 async function startWhatsAppBot() {
     try {
-        console.log('\n🔄 מאתחל בוט WhatsApp Web.js...');
+        console.log('\n🔄 Initializing WhatsApp Web.js bot...');
         whatsappBot = new WhatsAppBot(OPENAI_API_KEY);
         await whatsappBot.start();
     } catch (error) {
-        console.error('❌ שגיאה באתחול בוט WhatsApp:', error);
+        console.error('❌ WhatsApp bot initialization error:', error);
         process.exit(1);
     }
 }
 
-// התחלת הבוט - רק אם לא משתמשים ב-Business API
-if (!USE_BUSINESS_API) {
-    startWhatsAppBot();
-} else {
-    console.log('✅ WhatsApp Business API initialized - waiting for webhooks');
-}
+startWhatsAppBot();
 
-// תזמון בדיקת תקציבים - כל יום בשעה 18:00
+// Budget check scheduler - runs daily at 18:00
 cron.schedule('0 18 * * *', async () => {
-    console.log('🔍 מפעיל בדיקת תקציבים יומית...');
+    console.log('🔍 Running daily budget check...');
     if (whatsappBot && whatsappBot.isReady) {
         await whatsappBot.checkAllBudgetsAndAlert();
     } else {
-        console.log('⚠️ הבוט לא מוכן, מדלג על בדיקת תקציבים');
+        console.log('⚠️ Bot not ready, skipping budget check');
     }
 });
 
-console.log('⏰ תזמון בדיקת תקציבים הופעל - ירוץ כל יום בשעה 18:00');
+console.log('⏰ Budget check scheduler enabled - runs daily at 18:00');
 
-// תזמון סיכום חודשי - כל יום בשעה 20:00, אבל ישלח רק ביום האחרון של החודש
+// Monthly summary scheduler - runs daily at 20:00, sends only on last day of month
 cron.schedule('0 20 * * *', async () => {
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // בדיקה אם מחר הוא יום 1 של החודש (כלומר היום הוא האחרון של החודש)
+    // Check if tomorrow is the 1st (meaning today is the last day of the month)
     if (tomorrow.getDate() === 1) {
-        console.log('🗓️ מפעיל משימת סיכום חודשי מתוזמנת...');
+        console.log('🗓️ Running scheduled monthly summary...');
         if (whatsappBot && whatsappBot.isReady) {
             await whatsappBot.sendMonthlyReportToAllUsers();
         } else {
-            console.log('⚠️ הבוט לא מוכן, מדלג על סיכום חודשי');
+            console.log('⚠️ Bot not ready, skipping monthly summary');
         }
     }
 });
 
-console.log('⏰ תזמון סיכום חודשי הופעל - ירוץ בסוף כל חודש בשעה 20:00');
+console.log('⏰ Monthly summary scheduler enabled - runs at end of each month at 20:00');
 
 // Graceful Shutdown
 const gracefulShutdown = async (signal) => {
-    console.log(`\n${signal} - מתחיל כיבוי מסודר...`);
-    
-    // סגירת שרת Express
+    console.log(`\n${signal} - Starting graceful shutdown...`);
+
+    // Close Express server
     server.close(() => {
-        console.log('✅ שרת Express כובה');
+        console.log('✅ Express server closed');
     });
 
-    // כיבוי בוט WhatsApp
+    // Stop WhatsApp bot
     if (whatsappBot) {
         await whatsappBot.stop();
     }
 
-    // סגירת חיבור MongoDB
+    // Close MongoDB connection
     await mongoose.connection.close();
-    console.log('✅ חיבור MongoDB נסגר');
+    console.log('✅ MongoDB connection closed');
 
-    console.log('👋 כיבוי מסודר הושלם');
+    console.log('👋 Graceful shutdown completed');
     process.exit(0);
 };
 
-// טיפול בסיגנלים
+// Handle signals
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// טיפול בשגיאות לא צפויות
+// Handle unexpected errors
 process.on('unhandledRejection', (reason, promise) => {
     console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
 });

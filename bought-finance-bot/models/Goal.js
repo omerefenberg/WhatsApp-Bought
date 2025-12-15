@@ -3,29 +3,29 @@ const mongoose = require('mongoose');
 const goalSchema = new mongoose.Schema({
     userId: {
         type: String,
-        required: [true, 'userId הוא שדה חובה'],
+        required: [true, 'userId is required'],
         index: true
     },
     title: {
         type: String,
-        required: [true, 'כותרת היעד היא שדה חובה'],
+        required: [true, 'Goal title is required'],
         trim: true,
-        maxlength: [100, 'כותרת היעד ארוכה מדי']
+        maxlength: [100, 'Goal title is too long']
     },
     description: {
         type: String,
         trim: true,
-        maxlength: [500, 'התיאור ארוך מדי']
+        maxlength: [500, 'Description is too long']
     },
     targetAmount: {
         type: Number,
-        required: [true, 'סכום היעד הוא שדה חובה'],
-        min: [1, 'סכום היעד חייב להיות חיובי']
+        required: [true, 'Target amount is required'],
+        min: [1, 'Target amount must be positive']
     },
     currentAmount: {
         type: Number,
         default: 0,
-        min: [0, 'הסכום הנוכחי לא יכול להיות שלילי']
+        min: [0, 'Current amount cannot be negative']
     },
     deadline: {
         type: Date,
@@ -49,7 +49,7 @@ const goalSchema = new mongoose.Schema({
         type: Date,
         required: false
     },
-    // חישובים אוטומטיים
+    // Automatic calculations
     weeklyTarget: {
         type: Number,
         default: 0
@@ -66,18 +66,18 @@ const goalSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// אינדקסים למהירות
+// Indexes for performance
 goalSchema.index({ userId: 1, status: 1 });
 goalSchema.index({ userId: 1, createdAt: -1 });
 
-// חישוב אוטומטי של מטרות שבועיות/חודשיות
+// Automatic calculation of weekly/monthly targets
 goalSchema.pre('save', function(next) {
-    // חישוב אחוז התקדמות
+    // Calculate progress percentage
     if (this.targetAmount > 0) {
         this.progressPercentage = Math.round((this.currentAmount / this.targetAmount) * 100);
     }
 
-    // אם יש תאריך יעד, חשב מטרות שבועיות/חודשיות
+    // If there's a deadline, calculate weekly/monthly targets
     if (this.deadline && this.status === 'active') {
         const now = new Date();
         const daysRemaining = Math.ceil((this.deadline - now) / (1000 * 60 * 60 * 24));
@@ -95,7 +95,7 @@ goalSchema.pre('save', function(next) {
         }
     }
 
-    // אם הגענו ליעד, סמן כהושלם
+    // If target reached, mark as completed
     if (this.currentAmount >= this.targetAmount && this.status === 'active') {
         this.status = 'completed';
         this.completedAt = new Date();
@@ -104,7 +104,7 @@ goalSchema.pre('save', function(next) {
     next();
 });
 
-// מתודות עזר
+// Helper methods
 goalSchema.methods.addProgress = async function(amount) {
     this.currentAmount += amount;
     await this.save();

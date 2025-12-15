@@ -7,12 +7,12 @@ const { getCategoryStats, getMonthlyStats, getDailyStats, getWeeklyStats } = req
 
 /**
  * GET /api/transactions
- * קבלת כל הטרנזקציות
+ * Get all transactions
  */
 router.get('/transactions', async (req, res) => {
     try {
         const { limit = 50, skip = 0, type, category } = req.query;
-        
+
         const filter = {};
         if (type) filter.type = type;
         if (category) filter.category = category;
@@ -34,26 +34,26 @@ router.get('/transactions', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('❌ שגיאה בשליפת טרנזקציות:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'שגיאה בשליפת נתונים' 
+        console.error('❌ Error fetching transactions:', error);
+        res.status(500).json({
+            success: false,
+            error: 'שגיאה בשליפת נתונים'
         });
     }
 });
 
 /**
  * GET /api/transactions/:id
- * קבלת טרנזקציה בודדת
+ * Get single transaction
  */
 router.get('/transactions/:id', async (req, res) => {
     try {
         const transaction = await Transaction.findById(req.params.id);
-        
+
         if (!transaction) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'טרנזקציה לא נמצאה' 
+            return res.status(404).json({
+                success: false,
+                error: 'טרנזקציה לא נמצאה'
             });
         }
 
@@ -62,17 +62,17 @@ router.get('/transactions/:id', async (req, res) => {
             data: transaction
         });
     } catch (error) {
-        console.error('❌ שגיאה בשליפת טרנזקציה:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'שגיאה בשליפת נתונים' 
+        console.error('❌ Error fetching transaction:', error);
+        res.status(500).json({
+            success: false,
+            error: 'שגיאה בשליפת נתונים'
         });
     }
 });
 
 /**
  * POST /api/transactions
- * יצירת טרנזקציה חדשה
+ * Create new transaction
  */
 router.post('/transactions', async (req, res) => {
     try {
@@ -86,26 +86,26 @@ router.post('/transactions', async (req, res) => {
             data: transaction
         });
     } catch (error) {
-        console.error('❌ שגיאה ביצירת טרנזקציה:', error);
-        
+        console.error('❌ Error creating transaction:', error);
+
         if (error.name === 'ValidationError') {
-            return res.status(400).json({ 
-                success: false, 
+            return res.status(400).json({
+                success: false,
                 error: 'נתונים לא תקינים',
                 details: error.message
             });
         }
 
-        res.status(500).json({ 
-            success: false, 
-            error: 'שגיאה ביצירת טרנזקציה' 
+        res.status(500).json({
+            success: false,
+            error: 'שגיאה ביצירת טרנזקציה'
         });
     }
 });
 
 /**
  * PUT /api/transactions/:id
- * עדכון טרנזקציה
+ * Update transaction
  */
 router.put('/transactions/:id', async (req, res) => {
     try {
@@ -116,9 +116,9 @@ router.put('/transactions/:id', async (req, res) => {
         );
 
         if (!transaction) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'טרנזקציה לא נמצאה' 
+            return res.status(404).json({
+                success: false,
+                error: 'טרנזקציה לא נמצאה'
             });
         }
 
@@ -127,35 +127,35 @@ router.put('/transactions/:id', async (req, res) => {
             data: transaction
         });
     } catch (error) {
-        console.error('❌ שגיאה בעדכון טרנזקציה:', error);
-        
+        console.error('❌ Error updating transaction:', error);
+
         if (error.name === 'ValidationError') {
-            return res.status(400).json({ 
-                success: false, 
+            return res.status(400).json({
+                success: false,
                 error: 'נתונים לא תקינים',
                 details: error.message
             });
         }
 
-        res.status(500).json({ 
-            success: false, 
-            error: 'שגיאה בעדכון טרנזקציה' 
+        res.status(500).json({
+            success: false,
+            error: 'שגיאה בעדכון טרנזקציה'
         });
     }
 });
 
 /**
  * DELETE /api/transactions/:id
- * מחיקת טרנזקציה
+ * Delete transaction
  */
 router.delete('/transactions/:id', async (req, res) => {
     try {
         const transaction = await Transaction.findByIdAndDelete(req.params.id);
 
         if (!transaction) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'טרנזקציה לא נמצאה' 
+            return res.status(404).json({
+                success: false,
+                error: 'טרנזקציה לא נמצאה'
             });
         }
 
@@ -164,17 +164,17 @@ router.delete('/transactions/:id', async (req, res) => {
             message: 'טרנזקציה נמחקה בהצלחה'
         });
     } catch (error) {
-        console.error('❌ שגיאה במחיקת טרנזקציה:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'שגיאה במחיקת טרנזקציה' 
+        console.error('❌ Error deleting transaction:', error);
+        res.status(500).json({
+            success: false,
+            error: 'שגיאה במחיקת טרנזקציה'
         });
     }
 });
 
 /**
  * GET /api/stats/monthly
- * סטטיסטיקות חודשיות
+ * Monthly statistics
  */
 router.get('/stats/monthly', async (req, res) => {
     try {
@@ -184,17 +184,17 @@ router.get('/stats/monthly', async (req, res) => {
             data: stats
         });
     } catch (error) {
-        console.error('❌ שגיאה בסטטיסטיקות חודשיות:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'שגיאה בחישוב סטטיסטיקות' 
+        console.error('❌ Error in monthly statistics:', error);
+        res.status(500).json({
+            success: false,
+            error: 'שגיאה בחישוב סטטיסטיקות'
         });
     }
 });
 
 /**
  * GET /api/stats/daily
- * סטטיסטיקות יומיות
+ * Daily statistics
  */
 router.get('/stats/daily', async (req, res) => {
     try {
@@ -204,17 +204,17 @@ router.get('/stats/daily', async (req, res) => {
             data: stats
         });
     } catch (error) {
-        console.error('❌ שגיאה בסטטיסטיקות יומיות:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'שגיאה בחישוב סטטיסטיקות' 
+        console.error('❌ Error in daily statistics:', error);
+        res.status(500).json({
+            success: false,
+            error: 'שגיאה בחישוב סטטיסטיקות'
         });
     }
 });
 
 /**
  * GET /api/stats/weekly
- * סטטיסטיקות שבועיות
+ * Weekly statistics
  */
 router.get('/stats/weekly', async (req, res) => {
     try {
@@ -224,17 +224,17 @@ router.get('/stats/weekly', async (req, res) => {
             data: stats
         });
     } catch (error) {
-        console.error('❌ שגיאה בסטטיסטיקות שבועיות:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'שגיאה בחישוב סטטיסטיקות' 
+        console.error('❌ Error in weekly statistics:', error);
+        res.status(500).json({
+            success: false,
+            error: 'שגיאה בחישוב סטטיסטיקות'
         });
     }
 });
 
 /**
  * GET /api/stats/categories
- * סטטיסטיקות לפי קטגוריות
+ * Category statistics
  */
 router.get('/stats/categories', async (req, res) => {
     try {
@@ -244,17 +244,17 @@ router.get('/stats/categories', async (req, res) => {
             data: stats
         });
     } catch (error) {
-        console.error('❌ שגיאה בסטטיסטיקות קטגוריות:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'שגיאה בחישוב סטטיסטיקות' 
+        console.error('❌ Error in category statistics:', error);
+        res.status(500).json({
+            success: false,
+            error: 'שגיאה בחישוב סטטיסטיקות'
         });
     }
 });
 
 /**
  * GET /api/health
- * בדיקת תקינות
+ * Health check
  */
 router.get('/health', (req, res) => {
     res.json({
@@ -266,12 +266,12 @@ router.get('/health', (req, res) => {
 
 /**
  * GET /api/budget
- * קבלת תקציב
+ * Get budget
  */
 router.get('/budget', async (req, res) => {
     try {
         const { userId } = req.query;
-        
+
         let budget;
         if (userId) {
             budget = await Budget.findOne({ userId });
@@ -292,17 +292,17 @@ router.get('/budget', async (req, res) => {
             data: budget
         });
     } catch (error) {
-        console.error('❌ שגיאה בשליפת תקציב:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'שגיאה בשליפת תקציב' 
+        console.error('❌ Error fetching budget:', error);
+        res.status(500).json({
+            success: false,
+            error: 'שגיאה בשליפת תקציב'
         });
     }
 });
 
 /**
  * GET /api/budget/compare
- * השוואת תקציב להוצאות בפועל
+ * Compare budget to actual expenses
  */
 router.get('/budget/compare', async (req, res) => {
     try {
@@ -340,7 +340,7 @@ router.get('/budget/compare', async (req, res) => {
             data: comparison
         });
     } catch (error) {
-        console.error('❌ שגיאה בהשוואת תקציב:', error);
+        console.error('❌ Error comparing budget:', error);
         res.status(500).json({
             success: false,
             error: 'שגיאה בהשוואת תקציב'
@@ -350,7 +350,7 @@ router.get('/budget/compare', async (req, res) => {
 
 /**
  * GET /api/goals
- * קבלת כל יעדי החיסכון
+ * Get all savings goals
  */
 router.get('/goals', async (req, res) => {
     try {
@@ -374,7 +374,7 @@ router.get('/goals', async (req, res) => {
             count: goals.length
         });
     } catch (error) {
-        console.error('❌ שגיאה בשליפת יעדים:', error);
+        console.error('❌ Error fetching goals:', error);
         res.status(500).json({
             success: false,
             error: 'שגיאה בשליפת יעדים'
@@ -384,7 +384,7 @@ router.get('/goals', async (req, res) => {
 
 /**
  * GET /api/goals/:id
- * קבלת יעד בודד
+ * Get single goal
  */
 router.get('/goals/:id', async (req, res) => {
     try {
@@ -397,7 +397,7 @@ router.get('/goals/:id', async (req, res) => {
             });
         }
 
-        // החזר גם סיכום התקדמות
+        // Also return progress summary
         const summary = goal.getProgressSummary();
 
         res.json({
@@ -408,7 +408,7 @@ router.get('/goals/:id', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('❌ שגיאה בשליפת יעד:', error);
+        console.error('❌ Error fetching goal:', error);
         res.status(500).json({
             success: false,
             error: 'שגיאה בשליפת יעד'

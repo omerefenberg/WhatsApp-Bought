@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const transactionSchema = new mongoose.Schema({
     userId: {
         type: String,
-        required: [true, 'userId הוא שדה חובה'],
+        required: [true, 'userId is required'],
         index: true
     },
     date: {
@@ -14,31 +14,31 @@ const transactionSchema = new mongoose.Schema({
     amount: {
         type: Number,
         required: true,
-        min: [0, 'הסכום חייב להיות חיובי']
+        min: [0, 'Amount must be positive']
     },
-    type: { 
-        type: String, 
+    type: {
+        type: String,
         enum: {
             values: ['income', 'expense'],
-            message: 'הסוג חייב להיות income או expense'
+            message: 'Type must be income or expense'
         },
         required: true,
         default: 'expense'
     },
-    category: { 
-        type: String, 
+    category: {
+        type: String,
         enum: {
             values: ['אוכל', 'תחבורה', 'קניות', 'חשבונות', 'בילויים', 'משכורת', 'בריאות', 'כללי'],
-            message: 'קטגוריה לא חוקית'
+            message: 'Invalid category'
         },
         default: 'כללי',
         required: true
     },
-    description: { 
+    description: {
         type: String,
-        required: [true, 'תיאור הוא שדה חובה'],
+        required: [true, 'Description is required'],
         trim: true,
-        maxlength: [200, 'התיאור ארוך מדי']
+        maxlength: [200, 'Description is too long']
     },
     source: {
         type: String,

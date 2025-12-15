@@ -32,7 +32,7 @@ async function getMonthlyStats(userId = null) {
 
         return calculateStats(transactions);
     } catch (error) {
-        console.error('❌ שגיאה בחישוב חודשי:', error);
+        console.error('❌ Error calculating monthly stats:', error);
         throw error;
     }
 }
@@ -54,7 +54,7 @@ async function getDailyStats(userId = null) {
 
         return calculateStats(transactions);
     } catch (error) {
-        console.error('❌ שגיאה בחישוב יומי:', error);
+        console.error('❌ Error calculating daily stats:', error);
         throw error;
     }
 }
@@ -76,7 +76,7 @@ async function getWeeklyStats(userId = null) {
 
         return calculateStats(transactions);
     } catch (error) {
-        console.error('❌ שגיאה בחישוב שבועי:', error);
+        console.error('❌ Error calculating weekly stats:', error);
         throw error;
     }
 }
@@ -118,7 +118,7 @@ async function getCategoryStats(userId = null) {
             count: s.count
         }));
     } catch (error) {
-        console.error('❌ שגיאה בסטטיסטיקות קטגוריות:', error);
+        console.error('❌ Error calculating category stats:', error);
         throw error;
     }
 }
@@ -135,31 +135,31 @@ function formatStatsMessage(stats, period = 'חודש') {
 }
 
 /**
- * חישוב סיכום חודשי מפורט עם השוואה לתקציב
+ * Calculate detailed monthly summary with budget comparison
  */
 async function getMonthlyBudgetComparison(userId) {
     try {
         const Budget = require('../models/Budget');
 
-        // קבלת תקציב המשתמש
+        // Get user budget
         const budget = await Budget.findOne({ userId, setupCompleted: true });
         if (!budget) {
             return null;
         }
 
-        // חישוב תאריך תחילת החודש
+        // Calculate start of month
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
 
-        // קבלת כל ההוצאות של החודש
+        // Get all expenses for the month
         const expenses = await Transaction.find({
             userId,
             type: 'expense',
             date: { $gte: startOfMonth }
         });
 
-        // חישוב הוצאות לפי קטגוריה
+        // Calculate expenses by category
         const categoryTotals = {};
         expenses.forEach(expense => {
             if (!categoryTotals[expense.category]) {
@@ -168,7 +168,7 @@ async function getMonthlyBudgetComparison(userId) {
             categoryTotals[expense.category] += expense.amount;
         });
 
-        // בניית נתונים להשוואה
+        // Build comparison data
         const categories = ['אוכל', 'תחבורה', 'קניות', 'חשבונות', 'בילויים', 'בריאות', 'כללי'];
         const comparison = [];
         let totalBudget = 0;
@@ -207,7 +207,7 @@ async function getMonthlyBudgetComparison(userId) {
             savedMoney: totalSaved > 0
         };
     } catch (error) {
-        console.error('❌ שגיאה בחישוב השוואת תקציב:', error);
+        console.error('❌ Error calculating budget comparison:', error);
         throw error;
     }
 }
